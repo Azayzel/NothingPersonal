@@ -15,6 +15,7 @@ import (
 )
 
 const scanChunk = 64 << 10
+const maxAuditHits = 1024
 
 type scrubber struct {
  pattern *regexp.Regexp
@@ -49,13 +50,16 @@ func newScrubber(secrets []string, replacement string) (*scrubber,error) {
  pat,err:=regexp.Compile("(?i:"+strings.Join(quoted,"|")+")")
  if err!=nil{return nil,fmt.Errorf("compile secret patterns: %w",err)}
  if replacement!="" && pat.MatchString(replacement){return nil,errors.New("replacement contains a configured secret")}
- return &scrubber{pattern:pat,maxPattern:maxLen,replacement:[]byte(replacement)},nil
+ return &scrubber{pattern:pat,maxPattern:maxLen*4,replacement:[]byte(replacement)},nil
+}
+func recordHit(hits *[]string,where string){
+ if len(*hits)<maxAuditHits{recordHit(hits,where)}
 }
 func (s *scrubber) contains(v string)bool{return s.pattern.MatchString(v)}
 func (s *scrubber) string(v,where string,hits *[]string)string{return string(s.replace([]byte(v),where,hits))}
 func (s *scrubber) replace(data []byte,where string,hits *[]string)[]byte {
  return s.pattern.ReplaceAllFunc(data,func(_ []byte)[]byte{
-  *hits=append(*hits,where)
+  recordHit(hits,where)
   return s.replacement
  })
 }
@@ -69,7 +73,7 @@ func (s *scrubber) writeSafe(dst io.Writer,buf []byte,safe int,where string,hits
   start,end:=consumed+loc[0],consumed+loc[1]
   if _,err:=dst.Write(buf[consumed:start]);err!=nil{return 0,err}
   if _,err:=dst.Write(s.replacement);err!=nil{return 0,err}
-  *hits=append(*hits,where)
+  recordHit(hits,where)
   consumed=end
  }
  if consumed<safe{
@@ -199,5 +203,6 @@ func joinedHits(hits []string)string{
   b.WriteString(k)
   if counts[k]>1{fmt.Fprintf(&b," x%d",counts[k])}
  }
+ if len(hits)==maxAuditHits{b.WriteString(" (at least 1024 hits; audit count capped)")}
  return b.String()
 }
