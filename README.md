@@ -1,10 +1,21 @@
-# NothingPersonal
+# NothingPersonal (`nop`)
 
-> Nothing personal, kid.
+**Local AI agent privacy proxy — redact configured secrets from outbound HTTP/HTTPS requests.**
 
-**`nop`** is a Go standard-library-only, local HTTP/HTTPS proxy for reducing accidental disclosure of configured literal secrets by AI-agent CLIs. It can redact email addresses, phone numbers, or API keys from outbound request URLs, headers, and bodies.
+[![CI](https://github.com/Azayzel/NothingPersonal/actions/workflows/ci.yml/badge.svg)](https://github.com/Azayzel/NothingPersonal/actions/workflows/ci.yml)
+[![Go](https://img.shields.io/badge/Go-1.23%2B-00ADD8?logo=go)](https://go.dev/)
 
-**Important:** nop is **not** a firewall or a zero-leak guarantee. Processes that ignore proxy settings can connect directly. Encoded data beyond its recognized transforms, encrypted application payloads, direct sockets, and intentionally uninspected hosts cannot be protected.
+> *Nothing personal, kid.*
+
+NothingPersonal is an open-source, zero-dependency **CLI privacy guard for AI coding agents**. Run a proxy-aware session of **Claude Code, OpenAI Codex CLI, Gemini CLI**, or another development tool through `nop` to inspect outgoing HTTP and HTTPS requests and replace configured email addresses, API keys, tokens, or other literal secrets before forwarding them.
+
+- **Local-first:** HTTP/HTTPS interception and redaction happen on your machine; there is no hosted service.
+- **Built for AI agents:** `nop run -- <agent>` starts an isolated proxy session and fails closed if setup fails.
+- **Large-upload aware:** bounded-memory scanning, temporary disk spooling, gzip inspection, and configurable decoded-body limits.
+- **Observable:** privacy-preserving audit logs identify redaction locations and destinations without printing original secret values.
+- **Portable:** Go standard library only; builds for Linux, macOS, and Windows.
+
+**Security scope:** This is a defense-in-depth HTTP(S) proxy, **not** a firewall, universal DLP solution, or zero-leak guarantee. Applications that bypass proxy settings can connect directly. Unsupported encodings, encrypted application payloads, and explicitly uninspected traffic are outside the redaction boundary. See [security and operational limitations](#security-and-operational-limitations).
 
 ## Quick start
 
@@ -41,6 +52,19 @@ claude
 ```
 
 PowerShell session setup: `./nop.exe -env -powershell | Invoke-Expression`.
+
+## AI agent compatibility
+
+`nop` is agent-agnostic: it relies on **standard HTTP proxy and TLS trust settings**, not integrations with any model provider. Compatibility depends on whether an agent and the tools it spawns respect those settings.
+
+| Agent CLI | Example guarded session | Notes |
+| --- | --- | --- |
+| Claude Code | `./nop run -- claude` | Automatically discovers the signed-in Claude account email when available |
+| OpenAI Codex CLI | `./nop run -redact-file ~/.nop/secrets.txt -- codex` | Add the specific secrets you want to protect |
+| Gemini CLI | `./nop run -redact-file ~/.nop/secrets.txt -- gemini` | Add the specific secrets you want to protect |
+| Other CLI agents / developer tools | `./nop run -redact-file ~/.nop/secrets.txt -- <command>` | Works only for proxied HTTP(S) traffic |
+
+For a separate proxy process, use `nop -env` to print shell-scoped proxy and CA trust variables. **Test your particular CLI's TLS and proxy behavior before relying on it to protect sensitive data.**
 
 ## Coverage
 
@@ -112,3 +136,7 @@ Releases should run cross-platform build checks; the included GitHub Actions wor
 An agent can accidentally echo session-specific context into telemetry, headers, or requests. nop provides an inspectable, explicitly scoped defense-in-depth layer at the HTTP proxy boundary. It cannot prove that "nothing personal leaves the machine," so use it with that distinction in mind.
 
 License: MIT.
+
+## Contributing
+
+Bug reports, reproducible privacy-bypass test cases, and pull requests are welcome. Please add regression tests for any redaction or interception change, run `go test -race ./...`, and avoid putting real secrets in issue reports or test fixtures.
