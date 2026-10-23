@@ -132,3 +132,25 @@ func TestCAAndSecretURLParsing(t *testing.T){
  if sameAuthority("example.org:8080","example.org:443","443"){t.Fatal("port mismatch not detected")}
  if _,err:=url.Parse("http://localhost:8787");err!=nil{t.Fatal(err)}
 }
+
+
+func TestAuditHitsBounded(t *testing.T){
+ s,err:=newScrubber([]string{"z"},"X")
+ if err!=nil{t.Fatal(err)}
+ var hits []string
+ var output bytes.Buffer
+ _,err=s.copy(&output,strings.NewReader(strings.Repeat("z",500000)),"body",&hits,0)
+ if err!=nil{t.Fatal(err)}
+ if len(hits)!=maxAuditHits{t.Fatalf("audit unbounded: %d",len(hits))}
+ if output.Len()!=500000{t.Fatal("replacement length changed unexpectedly")}
+}
+func TestUnicodeExpandedCaseFoldAcrossChunk(t *testing.T){
+ s,err:=newScrubber([]string{"k"},"X")
+ if err!=nil{t.Fatal(err)}
+ var hits []string
+ var output bytes.Buffer
+ input:=strings.Repeat("x",scanChunk-1)+"K"
+ _,err=s.copy(&output,strings.NewReader(input),"body",&hits,0)
+ if err!=nil{t.Fatal(err)}
+ if strings.Contains(output.String(),"K"){t.Fatal("Unicode folded secret crossed a chunk boundary")}
+}
