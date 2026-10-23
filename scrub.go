@@ -53,7 +53,7 @@ func newScrubber(secrets []string, replacement string) (*scrubber,error) {
  return &scrubber{pattern:pat,maxPattern:maxLen*4,replacement:[]byte(replacement)},nil
 }
 func recordHit(hits *[]string,where string){
- if len(*hits)<maxAuditHits{recordHit(hits,where)}
+ if len(*hits)<maxAuditHits{*hits=append(*hits,where)}
 }
 func (s *scrubber) contains(v string)bool{return s.pattern.MatchString(v)}
 func (s *scrubber) string(v,where string,hits *[]string)string{return string(s.replace([]byte(v),where,hits))}
