@@ -1,0 +1,10 @@
+# Never commit local interception credentials.
+.nop/
+ca.pem
+ca.key
+secrets.txt
+*.exe
+nop
+nop-*
+*.test
+.DS_Store
